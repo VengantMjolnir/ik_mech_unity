@@ -1,0 +1,4 @@
+tree("Root")
+	sequence
+		Wait(1.0)
+		DebugLog("Thinking...")
