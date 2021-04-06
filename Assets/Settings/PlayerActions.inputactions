@@ -36,6 +36,14 @@
                     "expectedControlType": "Vector2",
                     "processors": "",
                     "interactions": ""
+                },
+                {
+                    "name": "Jump",
+                    "type": "Button",
+                    "id": "32ecdd85-938a-4e5e-a4f2-a32dd8650e53",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": ""
                 }
             ],
             "bindings": [
@@ -44,7 +52,7 @@
                     "id": "0521f68c-5f75-4f73-a53f-e200c71444e1",
                     "path": "<Gamepad>/leftStick",
                     "interactions": "",
-                    "processors": "ScaleVector2(x=1.25,y=1.25)",
+                    "processors": "ScaleVector2(x=1.25,y=1.25),StickDeadzone",
                     "groups": "Controller",
                     "action": "Movement",
                     "isComposite": false,
@@ -55,7 +63,7 @@
                     "id": "7093f0eb-da71-4fac-9f09-7ee7f89a6e2c",
                     "path": "2DVector",
                     "interactions": "",
-                    "processors": "",
+                    "processors": "StickDeadzone",
                     "groups": "",
                     "action": "Movement",
                     "isComposite": true,
@@ -132,9 +140,20 @@
                     "id": "431ef22a-955c-40dd-954f-df9518e6138d",
                     "path": "<Mouse>/delta",
                     "interactions": "",
-                    "processors": "ScaleVector2(x=0.1,y=0.1)",
+                    "processors": "ScaleVector2(x=0.05,y=0.05)",
                     "groups": "PC/Keyboard",
                     "action": "CameraLook",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "0f17786c-8f5a-4af4-9c0a-f69f0645f802",
+                    "path": "<Keyboard>/space",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Jump",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

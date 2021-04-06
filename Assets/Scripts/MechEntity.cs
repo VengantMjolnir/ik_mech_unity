@@ -8,6 +8,7 @@ public class MechEntity : MonoBehaviour
     private static int FORWARD = Animator.StringToHash("Forward");
     private static int TURN = Animator.StringToHash("Turn");
     private static int IN_AIR = Animator.StringToHash("InAir");
+    private static int ANIM_SPEED = Animator.StringToHash("AnimSpeed");
 
     [Header("Mech Parts")]
     [SerializeField] private CharacterController _controller;
@@ -20,6 +21,14 @@ public class MechEntity : MonoBehaviour
     [SerializeField] private float _aimOffset = 0.125f;
     [SerializeField] private float _inAirSpeed = 25f;
     [SerializeField] private Vector3 _gravity = new Vector3(0, -1.8f, 0);
+    [SerializeField] private float _maxSpeedKPH = 155;
+    [SerializeField] private AnimationCurve _footstepVolumeCurve;
+    [SerializeField] private AnimationCurve _jumpCurve;
+    [SerializeField] private float _jumpForce = 10f;
+    [SerializeField] private float _maxJumpHeight = 30f;
+
+    [Header("Sounds")]
+    [SerializeField] private List<AudioClip> _footSteps;
 
     private Vector3 _desiredDirection;
     private Vector3 _forward;
@@ -27,10 +36,13 @@ public class MechEntity : MonoBehaviour
     private float _inAir;
     private float _alignmentCoefficient;
     private Vector3 _animatorDeltaPositions = Vector3.zero;
+    private float _currentSpeedKPH = 0f;
 
     private bool _jump;
     private bool _fire;
 
+    public float MaxSpeedKPH { get { return _maxSpeedKPH; } }
+    public float CurrentSpeedKPH { get { return _currentSpeedKPH; } }
     public Vector3 Velocity { get { return _controller.velocity; } }
 
     public void UpdateMovementData(Vector3 direction, Vector3 forward)
@@ -39,12 +51,36 @@ public class MechEntity : MonoBehaviour
         _forward = forward;
     }
 
+    public void Jump(bool activate)
+    {
+        if (!_jump && _controller.isGrounded)
+        {
+            _verticalSpeed = -_gravity.y * Time.deltaTime;
+        }
+        _jump = activate;
+    }
+
+    public void PlayFootstep(float volume = 1f)
+    {
+        float speedRatio = _currentSpeedKPH / _maxSpeedKPH;
+        volume = _footstepVolumeCurve.Evaluate(speedRatio);
+        if (_footSteps != null && _footSteps.Count > 0)
+        {
+            int index = UnityEngine.Random.Range(0, _footSteps.Count);
+            AudioSource.PlayClipAtPoint(_footSteps[index], transform.position, volume);
+        }
+    }
+
     void LateUpdate()
     {
-        UpdateLegs();
-        UpdateTorso();
         UpdateFalling();
         UpdateJumping();
+        UpdateLegs();
+        UpdateTorso();
+
+        Vector3 planarVelocity = _controller.velocity;
+        planarVelocity.y = 0f;
+        _currentSpeedKPH = Mathf.Round(planarVelocity.magnitude * 3.6f);
     }
 
     private void UpdateLegs()
@@ -58,7 +94,7 @@ public class MechEntity : MonoBehaviour
             turn = Vector3.Dot(_root.right, _desiredDirection);
             if (forward < _alignmentCoefficient)
             {
-                _root.forward = Vector3.Lerp(_root.forward, _desiredDirection, 0.125f);
+                _root.forward = Vector3.Slerp(_root.forward, _desiredDirection, 0.125f);
                 forward = Vector3.Dot(_root.forward, _desiredDirection);
                 turn = Vector3.Dot(_root.right, _desiredDirection);
             }
@@ -68,8 +104,6 @@ public class MechEntity : MonoBehaviour
             _animator.SetFloat(FORWARD, 0);
             _animator.SetFloat(TURN, 0);
         }
-
-        _verticalSpeed += _gravity.y * Time.deltaTime;
 
         Vector3 vertical = Vector3.up * _verticalSpeed;
         Vector3 horizontal;
@@ -84,12 +118,20 @@ public class MechEntity : MonoBehaviour
         {
             horizontal = _animatorDeltaPositions;
             _animatorDeltaPositions = Vector3.zero;
-            _verticalSpeed = _gravity.y / 2f;
             _animator.SetFloat(FORWARD, forward);
             _animator.SetFloat(TURN, turn);
         }
 
-        _controller.Move(vertical + horizontal);
+        Vector3 position = _controller.transform.position;
+        CollisionFlags flags = _controller.Move(vertical + horizontal);
+        if (flags.HasFlag(CollisionFlags.CollidedSides))
+        {
+            Vector3 delta = _controller.transform.position - position;
+            float ratio = Mathf.Clamp(delta.magnitude / horizontal.magnitude, 0.1f, 1.0f);
+            Debug.Log($"Blocked: {ratio}");
+            forward *= ratio;
+            _animator.SetFloat(FORWARD, forward);
+        }
     }
     private void UpdateTorso()
     {
@@ -107,10 +149,12 @@ public class MechEntity : MonoBehaviour
         if (_controller.isGrounded)
         {
             _inAir = 0;
+            _verticalSpeed += _gravity.y * Time.deltaTime;
             _alignmentCoefficient = _legAlignmentCoefficient;
         }
         else
         {
+            _verticalSpeed += _gravity.y * Time.deltaTime * 0.5f;
             _inAir = Mathf.Clamp01(_inAir + Time.deltaTime);
             _alignmentCoefficient = 2f;
         }
@@ -120,7 +164,11 @@ public class MechEntity : MonoBehaviour
 
     private void UpdateJumping()
     {
-
+        if (_jump)
+        {
+            float jumpRatio = Mathf.Clamp01(transform.position.y / _maxJumpHeight);
+            _verticalSpeed += -_gravity.y * _jumpCurve.Evaluate(jumpRatio) * Time.deltaTime * _jumpForce;
+        }
     }
 
     private void OnAnimatorMove()

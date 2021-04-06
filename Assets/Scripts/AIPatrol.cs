@@ -19,12 +19,14 @@ namespace Assets.Scripts
         [SerializeField]
         private List<Transform> _pathNodes = new List<Transform>();
         [SerializeField]
-        private bool _walk = true;
-        [SerializeField]
-        private float _walkSpeed = 0.75f;
+        private float _movementSmoothingSpeed = 1f;
         [SerializeField]
         private float _lookLerpFactor = 1f;
         private Vector3 _currentLookDir = Vector3.zero;
+
+        public Vector3 _rawInputMovement;
+        public Vector3 _smoothInputMovement;
+        public Vector3 _inputVector;
 
         private int _currentPathIndex = 0;
         private Animator _animator;
@@ -65,20 +67,33 @@ namespace Assets.Scripts
                 _currentLookDir = Vector3.Lerp(_currentLookDir, _navMeshAgent.destination - _mechEntity.transform.position, _lookLerpFactor * Time.deltaTime);
                 _currentLookDir.y = 0;
                 _currentLookDir.Normalize();
-                Vector3 inputVector = _navMeshAgent.desiredVelocity / _navMeshAgent.speed;
+
+                _rawInputMovement = _navMeshAgent.desiredVelocity / _navMeshAgent.speed;
 
                 float distance = worldDeltaPosition.magnitude;
-                if (distance > _navMeshAgent.radius)
-                {
-                    _navMeshAgent.nextPosition = _mechEntity.transform.position + 0.7f * worldDeltaPosition;
-                }
-                float t = 1f + distance / (_navMeshAgent.stoppingDistance * 2f);
+                //if (distance > _navMeshAgent.radius)
+                //{
+                _navMeshAgent.nextPosition = _mechEntity.transform.position + 0.5f * worldDeltaPosition;
+                //}
+                float t = 1f + distance / (_navMeshAgent.stoppingDistance);
                 t = Mathf.Clamp(t, 1f, 2f);
                 _animator.SetFloat(ANIM_SPEED, t);
                 
-                inputVector *= t / 2f;
+                CalculateMovementInputSmoothing();
+                _inputVector = _smoothInputMovement * (t / 2f);
                 
-                _mechEntity.UpdateMovementData(inputVector, _currentLookDir);
+                _mechEntity.UpdateMovementData(_inputVector, _currentLookDir);
+            }
+        }
+
+        private void CalculateMovementInputSmoothing()
+        {
+            if (Mathf.Abs(_rawInputMovement.sqrMagnitude - _smoothInputMovement.sqrMagnitude) < 0.0125f)
+            {
+                _smoothInputMovement = _rawInputMovement;
+            }
+            {
+                _smoothInputMovement = Vector3.Lerp(_smoothInputMovement, _rawInputMovement, Time.deltaTime * _movementSmoothingSpeed);
             }
         }
 

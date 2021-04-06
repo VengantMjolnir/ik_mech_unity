@@ -37,7 +37,6 @@ public class PlayerController : MonoBehaviour
     #region  INPUT SYSTEM ACTION METHODS
     public void OnMovement(InputAction.CallbackContext value)
     {
-        Debug.Log($"Movement Event: {value.ToString()}");
         Vector2 inputMovement = value.ReadValue<Vector2>();
         _rawInputMovement = new Vector3(inputMovement.x, 0, inputMovement.y);
     }
@@ -48,6 +47,11 @@ public class PlayerController : MonoBehaviour
         {
             //GameManager.Instance.TogglePauseState(this);
         }
+    }
+
+    public void OnJump(InputAction.CallbackContext value)
+    {
+        _mechEntity.Jump(value.ReadValueAsButton());
     }
     #endregion
 
@@ -86,9 +90,16 @@ public class PlayerController : MonoBehaviour
         UpdatePlayerMovement();
         UpdatePlayerAnimationMovement();
     }
+
     private void CalculateMovementInputSmoothing()
     {
-        _smoothInputMovement = Vector3.Lerp(_smoothInputMovement, _rawInputMovement, Time.deltaTime * _movementSmoothingSpeed);
+        if (Mathf.Abs(_rawInputMovement.sqrMagnitude - _smoothInputMovement.sqrMagnitude) < 0.0125f)
+        {
+            _smoothInputMovement = _rawInputMovement;
+        }
+        {
+            _smoothInputMovement = Vector3.Lerp(_smoothInputMovement, _rawInputMovement, Time.deltaTime * _movementSmoothingSpeed);
+        }
     }
 
     private void UpdatePlayerMovement()
@@ -105,8 +116,7 @@ public class PlayerController : MonoBehaviour
         
         if(_speedField != null)
         {
-            float mps = _mechEntity.Velocity.magnitude;
-            _speedField.text = $"{Mathf.RoundToInt(mps * 3.6f)} km/h";
+            _speedField.text = $"{Mathf.RoundToInt(_mechEntity.CurrentSpeedKPH)} km/h";
         }
     }
 
